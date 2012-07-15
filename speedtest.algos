@@ -1,0 +1,13 @@
+# Comments are ignored
+
+#blowfish-xts-plain
+blowfish-cbc-essiv:sha256
+
+twofish-xts-plain64
+twofish-cbc-essiv:sha256
+
+# AES is fast under Intel (AES-NI)
+aes-xts-plain
+aes-xts-plain64
+aes-cbc-essiv:sha256
+
