@@ -20,9 +20,19 @@ DRV="$1"
 TST=speedtest-tmp
 INP=speedtest.algos
 
+exec 5>&2
+tock=0
+tick()
+{
+let tock++
+echo -n "$tock" >&5
+}
+
 flush()
 {
+tick
 hdparm -f "$DRV" >/dev/null || die "cannot flush $DRV"
+tick
 }
 
 algos()
@@ -43,6 +53,25 @@ cryptsetup --key-file=/dev/urandom -s 256 -c "$1" create "$TST" "$DRV" || die "c
 cryptsetup remove "$TST" || die "cannot remove cryption of $TST"
 }
 
+ignerr()
+{
+"$@" 2>/dev/null
+flush
+}
+
+mytime()
+{
+{
+{ time -p ignerr "${@:3}" >&4; } 2>&1 |
+{
+read x r
+read x u
+read x s
+echo "$r real $u user $s sys $1 $2"
+}
+} 4>&1
+}
+
 run()
 {
 flush
@@ -51,19 +80,14 @@ cryptsetup --key-file=/dev/urandom -s 256 -c "$1" create "$TST" "$DRV" || die "c
 trap 'cryptsetup remove "$TST" || { sleep 1; cryptsetup remove "$TST"; }' 0
 
 flush
-echo "running: write $1"
-time dd if=/dev/zero of=/dev/mapper/"$TST" bs=1024000 # || die "write error"
-flush
-echo "was for: write $1"
-echo "running: read  $1"
-time dd if=/dev/mapper/"$TST" of=/dev/null bs=1024000 || die "read error"
-echo "was for: read  $1"
-flush
+mytime w "$1" dd if=/dev/zero of=/dev/mapper/"$TST" bs=1024000 status=noxfer # || die "write error"
+mytime r "$1" dd if=/dev/mapper/"$TST" of=/dev/null bs=1024000 status=noxfer || die "read error"
 
 cryptsetup remove "$TST" || die "cannot remove cryption of $TST"
 trap '' 0
 }
 
 algos check
+flush
 algos run 2>&1
 
